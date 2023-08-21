@@ -1,0 +1,65 @@
+name: Package helm chart
+description: Package and push helm chart
+inputs:
+  chart:
+    description: "The path to the helm chart"
+    required: true
+  version:
+    description: "The version of the helm chart"
+    required: true
+  linter:
+    description: "True if the helm chart should be linted"
+    default: "true"
+  repository:
+    description: "Hostname of the helm repository"
+    required: true
+  gcp_credentials:
+    description: "GCP credentials in json format"
+    required: true
+outputs:
+  version:
+    description: The semantic build version
+    value: ${{ steps.set_version.outputs.buildVersion }}
+runs:
+  using: composite
+  steps:
+    - name: Login to helm repository
+      shell: bash
+      run: |
+        gcloud auth print-access-token | helm registry login -u oauth2accesstoken \
+          --password-stdin https://${{ inputs.repository }}
+
+    - name: Package helm chart home-assistant
+      shell: bash
+      run: |
+        set -e
+        helm dependency build ${{ inputs.chart }}
+        helm package \
+          --app-version ${{ inputs.version }} \
+          --version ${{ inputs.version }} \
+          ${{ inputs.chart }}
+
+    - name: Lint helm chart
+      if: ${{ inputs.linter == 'true' }}
+      shell: bash
+      run: |
+        set -e
+
+        wget https://github.com/stackrox/kube-linter/releases/download/v0.6.4/kube-linter-linux -O /usr/local/bin/kube-linter
+        chmod +x /usr/local/bin/kube-linter
+
+        cat <<EOF > .kube-linter.yaml
+        checks:
+          exclude:
+            - unset-cpu-requirements
+            - no-read-only-root-fs
+        EOF
+
+        kube-linter lint <(helm template ${{ inputs.chart }})
+
+    - name: Push helm chart
+      shell: bash
+      run: |
+        set -e
+        chartName=$(basename ${{ inputs.chart }})
+        helm push $chartName-${{ inputs.version }}.tgz oci://${{ inputs.repository }}/helm
