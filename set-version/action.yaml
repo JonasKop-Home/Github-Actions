@@ -11,7 +11,7 @@ runs:
       name: Set version
       shell: bash
       run: |
-        set -e
+        set -eu
 
         baseBranch=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
         targetBranch=${GITHUB_BASE_REF:-$GITHUB_REF_NAME}
@@ -30,7 +30,7 @@ runs:
             newTag="0.0.0"
             echo "Cant find any tag on the branch, creating a new one '$newTag'"
           elif "$onDefaultBranch"; then
-            IFS='.' read -r -a splittedVersion <<<"$version"
+            IFS='.' read -r -a splittedVersion <<<"$lastTag"
             major="${splittedVersion[0]}"
             minor="${splittedVersion[1]}"
             patch="${splittedVersion[2]}"
