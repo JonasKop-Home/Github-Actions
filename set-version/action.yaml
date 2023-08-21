@@ -1,0 +1,63 @@
+name: Set semantic version
+description: Setting semantic version and incrementing the patch version
+outputs:
+  version:
+    description: The semantic build version
+    value: ${{ steps.set_version.outputs.buildVersion }}
+runs:
+  using: composite
+  steps:
+    - id: set_version
+      name: Set version
+      shell: bash
+      run: |
+        set -e
+
+        baseBranch=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+        targetBranch=${GITHUB_BASE_REF:-$GITHUB_REF_NAME}
+        onDefaultBranch=$([[ "$baseBranch" == "main" ]] && echo true || echo false)
+
+        currentTag=$(git tag --points-at HEAD --merged "origin/$targetBranch" | sort -V -r | head -1)
+        echo "Running on branch '$baseBranch'"
+
+        if [ ! -z "$currentTag" ]; then
+          echo "Commit already has a tag '$currentTag', reusing it."
+          newTag=$currentTag
+        else
+          lastTag=$(git tag --merged "origin/$targetBranch" | sort -V -r | head -1)
+
+          if [ -z "$lastTag" ]; then
+            newTag="0.0.0"
+            echo "Cant find any tag on the branch, creating a new one '$newTag'"
+          elif "$onDefaultBranch"; then
+            IFS='.' read -r -a splittedVersion <<<"$version"
+            major="${splittedVersion[0]}"
+            minor="${splittedVersion[1]}"
+            patch="${splittedVersion[2]}"
+
+            patch=$(expr $patch + 1)
+
+            newTag="$major.$minor.$patch"
+
+            echo "Incrementing version, new tag: $newTag"
+          else
+            newTag=$lastTag
+            echo "Running on feature branch, reusing last tag '$newTag'"
+          fi
+
+          if $onDefaultBranch; then
+            git config user.email "buildbot@github.com"
+            git config user.name "BuildBot"
+            git tag -a "$newTag" -m "Minor version"
+            git push --tags
+          fi
+        fi
+
+        version=$newTag
+        if ! $onDefaultBranch; then
+          hash=$(git rev-parse --short HEAD)
+          version="$version-$hash"
+        fi
+
+        echo "Success 🥭"
+        echo "Using version: '$version'"
