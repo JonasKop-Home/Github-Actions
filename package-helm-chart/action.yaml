@@ -62,4 +62,4 @@ runs:
       run: |
         set -e
         chartName=$(basename ${{ inputs.chart }})
-        helm push $chartName-${{ inputs.version }}.tgz oci://${{ inputs.repository }}/helm
+        helm push $chartName-${{ inputs.version }}.tgz oci://${{ inputs.repository }}/home-394919/home
