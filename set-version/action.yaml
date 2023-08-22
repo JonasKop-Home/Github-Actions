@@ -61,3 +61,6 @@ runs:
 
         echo "Success 🥭"
         echo "Using version: '$version'"
+
+        echo "buildVersion=$version" >> $GITHUB_OUTPUT
+        cat $GITHUB_OUTPUT
