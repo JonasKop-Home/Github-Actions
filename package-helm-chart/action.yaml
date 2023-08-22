@@ -9,7 +9,7 @@ inputs:
     required: true
   linter:
     description: "True if the helm chart should be linted"
-    default: "true"
+    default: "false"
   repository:
     description: "Hostname of the helm repository"
     required: true
