@@ -13,21 +13,27 @@ inputs:
   repository:
     description: "Hostname of the helm repository"
     required: true
-  gcp_credentials:
-    description: "GCP credentials in json format"
+  github_token:
+    description: "Github token"
     required: true
+
 outputs:
   version:
     description: The semantic build version
     value: ${{ steps.set_version.outputs.buildVersion }}
+
 runs:
   using: composite
   steps:
     - name: Login to helm repository
       shell: bash
       run: |
-        gcloud auth print-access-token | helm registry login -u oauth2accesstoken \
-          --password-stdin https://${{ inputs.repository }}
+        echo $GITHUB_TOKEN | helm registry \
+          login ghcr.io \
+          --username ${{ github.actor }} \
+          --password-stdin
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
 
     - name: Package helm chart home-assistant
       shell: bash
@@ -48,6 +54,7 @@ runs:
         wget https://github.com/stackrox/kube-linter/releases/download/v0.6.4/kube-linter-linux -O /usr/local/bin/kube-linter
         chmod +x /usr/local/bin/kube-linter
 
+        # TODO: See kube-linter issue https://github.com/stackrox/kube-linter/issues/459
         cat <<EOF > .kube-linter.yaml
         checks:
           exclude:
@@ -62,4 +69,4 @@ runs:
       run: |
         set -e
         chartName=$(basename ${{ inputs.chart }})
-        helm push $chartName-${{ inputs.version }}.tgz oci://${{ inputs.repository }}/home-394919/home
+        helm push $chartName-${{ inputs.version }}.tgz oci://ghcr.io/${{ github.repository_owner }}
